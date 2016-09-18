@@ -25,15 +25,17 @@ let processSet set =
 let makeChain set fromWord toWord =
     let processedSet = processSet set
     let mutable processed:string list = []
-    let mutable chain:Option<Chain> = None
+    let mutable chain:Option<string list> = None
     
     let isWordProcessed w = 
         List.contains w processed
 
-    let rec make f t =
+    let rec make currentChain f t =
         let alreadyProcessed = isWordProcessed f
         if not alreadyProcessed then        
             processed <- f :: processed
+
+        if f = t then chain <- Some currentChain
 
         if alreadyProcessed || (Option.isSome chain) then []
         else          
@@ -44,6 +46,6 @@ let makeChain set fromWord toWord =
                 |> List.filter (fun w -> 1 = (getDistance fromSet.Word w.Word) && not (isWordProcessed w.Word))
                 |> List.map (fun w -> { Word = w.Word;
                                         Distance = getDistance fromSet.Word w.Word 
-                                        Neighbors = make w.Word t })
-    make fromWord toWord |> ignore
+                                        Neighbors = make (w.Word :: currentChain) w.Word t })
+    make [ fromWord ] fromWord toWord |> ignore
     chain
