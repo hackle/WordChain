@@ -1,23 +1,49 @@
 ﻿module WordChainKata
 
-type Neighbor = { Word: string; Distance: int }
-type WordWithNeigbors = { Word: string; Neighbors: Neighbor list }
+type Chain = { Word: string; Distance: int; Neighbors: Chain list }
 
-let wordsDistance (word1:string) (word2:string) =
-    let word2Chars = word2.ToCharArray()
-
-    word1.ToCharArray()
-    |> Seq.except word2Chars
+let getDistance (word1:string) (word2:string) =
+    Seq.map2 (fun c1 c2 -> c1, c2) (word1.ToCharArray()) (word2.ToCharArray())
+    |> Seq.filter (fun pair ->
+                    let (c1, c2) = pair
+                    c1 <> c2)
     |> Seq.length
-
+    
 let processNeighbors set word =
     set
     |> List.except [ word ]
-    |> List.map (fun w -> { Word = w; Distance = wordsDistance word w })
+    |> List.map (fun w -> { Word = w; 
+                            Distance = getDistance word w; 
+                            Neighbors = [] })
 
 let processSet set =
     set 
-    |> List.map (fun w -> { Word = w; Neighbors = processNeighbors set w })
-
+    |> List.map (fun w -> { Word = w;
+                            Distance = 0;  
+                            Neighbors = processNeighbors set w })
+    
 let makeChain set fromWord toWord =
-    let processed = process set
+    let processedSet = processSet set
+    let mutable processed:string list = []
+    let mutable chain:Option<Chain> = None
+    
+    let isWordProcessed w = 
+        List.contains w processed
+
+    let rec make f t =
+        let alreadyProcessed = isWordProcessed f
+        if not alreadyProcessed then        
+            processed <- f :: processed
+
+        if alreadyProcessed || (Option.isSome chain) then []
+        else          
+            match processedSet |> List.filter (fun x -> x.Word = f) with
+            | [] -> []
+            | fromSet::_ ->
+                fromSet.Neighbors
+                |> List.filter (fun w -> 1 = (getDistance fromSet.Word w.Word) && not (isWordProcessed w.Word))
+                |> List.map (fun w -> { Word = w.Word;
+                                        Distance = getDistance fromSet.Word w.Word 
+                                        Neighbors = make w.Word t })
+    make fromWord toWord |> ignore
+    chain
