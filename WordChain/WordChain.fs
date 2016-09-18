@@ -24,11 +24,17 @@ let processSet set =
     
 let makeChain set fromWord toWord =
     let processedSet = processSet set
-    let mutable chain:string list list = []
+    let mutable chain:Option<string list> = None
     
     let rec make currentChain f t =
-        if f = t then 
-            chain <- currentChain :: chain
+        let betterChainExists = 
+            match chain with
+            | Some l -> List.length l <= List.length currentChain
+            | None -> false
+
+        if betterChainExists then []
+        elif f = t then 
+            chain <- Some (List.rev currentChain)
             []
         else
             match processedSet |> List.filter (fun x -> x.Word = f) with
