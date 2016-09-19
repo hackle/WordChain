@@ -22,7 +22,8 @@ let processSet set =
     |> List.map (fun w -> { Word = w;
                             Distance = 0;  
                             Neighbors = processNeighbors set w })
-    
+
+type ChainState = { Better: bool; Valid: bool }
 let makeChain set fromWord toWord =
     let processedSet = processSet set
     let mutable bestChain:Option<string list> = None
@@ -31,17 +32,21 @@ let makeChain set fromWord toWord =
     
     let rec search (chain:string list) (f:string) (t:string) : string list list =
         printfn "current chain %A f %A t %A" chain f t
-        let isBetterChain =
+        let isComplete = isChainComplete chain t
+        let chainState =
             match bestChain with
-            | None -> isChainComplete chain t
-            | Some bc -> (isChainComplete chain t) && (List.length chain) < (List.length bc)
-
-        if isBetterChain then
+            | None -> { Better = isComplete; Valid = not isComplete }
+            | Some bc -> 
+                let isBetter = isComplete && (List.length chain) < (List.length bc)
+                let isValid = not isComplete && (List.length chain) < (List.length bc)
+                { Better = isBetter; Valid = isValid }
+                        
+        if chainState.Better then
             bestChain <- Some chain
             []
-        // complete, but not better
-        elif (isChainComplete chain t) then []
-        // incomplete
+        // not better and invalid
+        elif not chainState.Valid then []
+        // not better but still valid
         else                
             let currentWords = 
                 processedSet 
