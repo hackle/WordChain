@@ -2,14 +2,37 @@
 
 type Chain = { Word: string; Distance: int; Neighbors: Chain list }
 
-let getDistance (word1:string) (word2:string) =
-    Seq.map2 (fun c1 c2 -> c1, c2) (word1.ToCharArray()) (word2.ToCharArray())
+let getDistance (c1:char seq) (c2:char seq) =
+    let lengthDiff =
+        (c1 |> Seq.length) - (c2 |> Seq.length)
+        |> abs
+
+    Seq.map2 (fun c1 c2 -> c1, c2) c1 c2
     |> Seq.filter (fun pair ->
                     let (c1, c2) = pair
                     c1 <> c2)
     |> Seq.length
-    |> (+) (abs (word1.Length - word2.Length))
+    |> (+) lengthDiff
     
+let areDifferentByOne (chars1:char list) (chars2:char list) =
+    let lenDiff = 
+        (List.length chars1) - (List.length chars2)
+        |> abs
+
+    if lenDiff <> 1 then false
+    else
+        let isOffByOne c1 c2 =
+            List.except c1 c2 
+            |> (fun e -> List.except e c2)
+            |> (=) c1
+
+        (isOffByOne chars1 chars2) || (isOffByOne chars2 chars1)
+
+let areNeighbors (word1:string) (word2:string) =
+    let chars1 = word1.ToCharArray() |> List.ofSeq
+    let chars2 = word2.ToCharArray() |> List.ofSeq
+    (1 = getDistance chars1 chars2) || (areDifferentByOne chars1 chars2)
+
 let processNeighbors withinMind set word =
     set
     |> List.except [ word ]
@@ -56,7 +79,7 @@ let makeChain set fromWord toWord =
         // not better but still valid
         elif List.contains f set then
             set
-            |> List.filter (fun w -> (getDistance f w = 1) && not (List.contains w chain))
+            |> List.filter (fun w -> (areNeighbors f w) && not (List.contains w chain))
             |> List.except [ f ]
             |> List.sortBy (fun w -> getDistance w t)
             |> List.map (fun w -> search (w :: chain) w t)
@@ -65,7 +88,9 @@ let makeChain set fromWord toWord =
         else []
 
     search [ fromWord ] fromWord toWord |> ignore
-    bestChain
+    match bestChain with
+    | None -> []
+    | Some c -> List.rev c
 
 let getChainForWords (fromWord:string) (toWord:string) =
     let regexJustLetters = new System.Text.RegularExpressions.Regex(@"^[a-zA-Z]+$", System.Text.RegularExpressions.RegexOptions.Compiled)
@@ -77,12 +102,10 @@ let getChainForWords (fromWord:string) (toWord:string) =
         }
         |> Async.RunSynchronously
         |> Seq.filter (fun s -> regexJustLetters.IsMatch s)
-        |> Seq.filter (fun s -> toWord.Length > (getDistance s toWord) || toWord.Length > (getDistance s fromWord))
+//        |> Seq.filter (fun s -> toWord.Length > (getDistance s toWord) || toWord.Length > (getDistance s fromWord))
         |> List.ofSeq
         |> List.map (fun w -> w.ToLower())
         |> List.distinct
 
-    let chain = makeChain set fromWord toWord
-    match chain with
-    | None -> printfn "No match was found"
-    | Some c -> printfn "The chain is %A" (c |> List.rev)
+    makeChain set fromWord toWord
+    |> printfn "The chain is %A"
