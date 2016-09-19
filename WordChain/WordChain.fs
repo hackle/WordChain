@@ -33,11 +33,27 @@ let areNeighbors (word1:string) (word2:string) =
     let chars2 = word2.ToCharArray() |> List.ofSeq
     (1 = getDistance chars1 chars2) || (areDifferentByOne chars1 chars2)
 
+let getSimilarity (word1:string) (word2:string) =
+    let getListSimilarity l1 l2 =
+        let diffCount = 
+            Set.difference (set l1) (set l2)
+            |> Set.count
+            |> float
+
+        let len1 = l1 |> List.length |> float
+        let len2 = l2 |> List.length |> float
+
+        if len2 = 0.0
+        then 0.0
+        else (len1 - diffCount) / len2
+
+    getListSimilarity (word1.ToCharArray() |> List.ofSeq) (word2.ToCharArray() |> List.ofSeq)
+
 let processNeighbors withinMind set word =
     set
     |> List.except [ word ]
     |> List.filter (fun w -> 1 = getDistance word w)
-    |> List.sortBy (fun w -> getDistance w withinMind)  //with this word in mind
+    |> List.sortByDescending (fun w -> getSimilarity w withinMind)  //with this word in mind
     |> List.map (fun w -> { Word = w; 
                             Distance = 1; 
                             Neighbors = [] })
@@ -77,15 +93,14 @@ let makeChain set fromWord toWord =
         // not better and invalid
         elif not chainState.Valid then []
         // not better but still valid
-        elif List.contains f set then
+        else
             set
-            |> List.filter (fun w -> (areNeighbors f w) && not (List.contains w chain))
+            |> List.filter (fun w -> not (List.contains w chain) && (areNeighbors f w))
             |> List.except [ f ]
-            |> List.sortBy (fun w -> getDistance w t)
+            |> List.sortByDescending (fun w -> getSimilarity w t)
             |> List.map (fun w -> search (w :: chain) w t)
             |> List.filter (fun l -> List.length l > 0) // get rid of empty lists
             |> List.concat
-        else []
 
     search [ fromWord ] fromWord toWord |> ignore
     match bestChain with
@@ -94,16 +109,15 @@ let makeChain set fromWord toWord =
 
 let getChainForWords (fromWord:string) (toWord:string) =
     let regexJustLetters = new System.Text.RegularExpressions.Regex(@"^[a-zA-Z]+$", System.Text.RegularExpressions.RegexOptions.Compiled)
+    // assuming scope; in fact it should work via temporarily stepping out of scope (then back in)
+    let minLength = min fromWord.Length toWord.Length
+    let maxLength = max fromWord.Length toWord.Length
     let set =
-        async {
-            let client = new System.Net.WebClient()
-            let! html = client.AsyncDownloadString(new System.Uri("http://codekata.com/data/wordlist.txt"))
-            return html.Split([| "\r"; "\n" |], System.StringSplitOptions.RemoveEmptyEntries)
-        }
-        |> Async.RunSynchronously
-        |> Seq.filter (fun s -> regexJustLetters.IsMatch s)
-//        |> Seq.filter (fun s -> toWord.Length > (getDistance s toWord) || toWord.Length > (getDistance s fromWord))
+        "E:\work\F#\wordlist.txt"
+        |> System.IO.File.ReadAllLines
         |> List.ofSeq
+        |> List.filter (fun s -> regexJustLetters.IsMatch s)
+        |> List.filter (fun s -> s.Length >= minLength && s.Length <= maxLength)
         |> List.map (fun w -> w.ToLower())
         |> List.distinct
 
