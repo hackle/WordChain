@@ -24,29 +24,38 @@ let processSet set =
     
 let makeChain set fromWord toWord =
     let processedSet = processSet set
-    let mutable chain:Option<string list> = None
+    let mutable bestChain:Option<string list> = None
+    let isChainComplete (chain:string list) (finalWord:string) =
+        (chain |> List.head) = finalWord
     
-    let rec make currentChain f t =
-        let betterChainExists = 
-            match chain with
-            | Some l -> List.length l <= List.length currentChain
+    let rec search (chain:string list) f t =
+        let isBetterChain =
+            match bestChain with
             | None -> false
+            | Some bc -> (isChainComplete chain t) && (List.length chain) < (List.length bc)
 
-        if betterChainExists then []
-        elif f = t then 
-            chain <- Some (List.rev currentChain)
+        if isBetterChain then
+            bestChain <- Some chain
             []
-        else
-            match processedSet |> List.filter (fun x -> x.Word = f) with
+        // complete, but not better
+        elif (isChainComplete chain t) then []
+        // incomplete
+        else                
+            let currentWords = 
+                processedSet 
+                |> List.filter (fun x -> x.Word = f)
+
+            match currentWords with
             | [] -> []
-            | fromSet::_ ->
-                fromSet.Neighbors
-                |> List.filter (fun w -> 1 = (getDistance fromSet.Word w.Word) && not (List.contains w.Word currentChain))
-                |> List.map (fun w -> { Word = w.Word;
-                                        Distance = getDistance fromSet.Word w.Word 
-                                        Neighbors = make (w.Word :: currentChain) w.Word t })
-    make [ fromWord ] fromWord toWord |> ignore
-    chain
+            | fromNode::_ ->
+                fromNode.Neighbors
+                |> List.filter (fun w -> not (List.contains w.Word chain))
+                |> List.map (fun w -> search (w.Word :: chain) w.Word t)
+                |> List.filter (fun l -> List.length l > 0) // get rid of empty lists
+                |> List.concat
+
+    search [ fromWord ] fromWord toWord |> ignore
+    bestChain
 
 let getChainForWords (fromWord:string) (toWord:string) =
     let set =
