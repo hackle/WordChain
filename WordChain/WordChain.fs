@@ -8,6 +8,7 @@ let getDistance (word1:string) (word2:string) =
                     let (c1, c2) = pair
                     c1 <> c2)
     |> Seq.length
+    |> (+) (abs (word1.Length - word2.Length))
     
 let processNeighbors withinMind set word =
     set
@@ -75,7 +76,7 @@ let getChainForWords (fromWord:string) (toWord:string) =
             return html.Split([| "\r"; "\n" |], System.StringSplitOptions.RemoveEmptyEntries)
         }
         |> Async.RunSynchronously
-        |> Seq.filter (fun s -> s.Length = fromWord.Length && regexJustLetters.IsMatch s)
+        |> Seq.filter (fun s -> regexJustLetters.IsMatch s)
         |> Seq.filter (fun s -> toWord.Length > (getDistance s toWord) || toWord.Length > (getDistance s fromWord))
         |> List.ofSeq
         |> List.map (fun w -> w.ToLower())
