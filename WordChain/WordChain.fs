@@ -35,7 +35,7 @@ let makeChain set fromWord toWord =
             match bestChain with
             | None -> 0
             | Some bc -> List.length bc
-        printfn "current chain %A f %A t %A length is %i best %i" chain f t (chain|>List.length) bestLength
+        printfn "from %A to %A best %i current %i, %A" f t bestLength (chain|>List.length) chain
 
         let isComplete = isChainComplete chain t
         let chainState =
