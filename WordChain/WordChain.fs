@@ -33,37 +33,6 @@ let areNeighbors (word1:string) (word2:string) =
     let chars2 = word2.ToCharArray() |> List.ofSeq
     (1 = getDistance chars1 chars2) || (areDifferentByOne chars1 chars2)
 
-let getSimilarity (word1:string) (word2:string) =
-    let getListSimilarity l1 l2 =
-        let diffCount = 
-            Set.difference (set l1) (set l2)
-            |> Set.count
-            |> float
-
-        let len1 = l1 |> List.length |> float
-        let len2 = l2 |> List.length |> float
-
-        if len2 = 0.0
-        then 0.0
-        else (len1 - diffCount) / len2
-
-    getListSimilarity (word1.ToCharArray() |> List.ofSeq) (word2.ToCharArray() |> List.ofSeq)
-
-let processNeighbors withinMind set word =
-    set
-    |> List.except [ word ]
-    |> List.filter (fun w -> 1 = getDistance word w)
-    |> List.sortByDescending (fun w -> getSimilarity w withinMind)  //with this word in mind
-    |> List.map (fun w -> { Word = w; 
-                            Distance = 1; 
-                            Neighbors = [] })
-
-let processSet withinMind set =
-    set 
-    |> List.map (fun w -> { Word = w;
-                            Distance = 0;  
-                            Neighbors = processNeighbors withinMind set w })
-
 type ChainState = { Better: bool; Valid: bool }
 let makeChain set fromWord toWord =
     let mutable bestChain:Option<string list> = None
@@ -97,7 +66,7 @@ let makeChain set fromWord toWord =
             set
             |> List.filter (fun w -> not (List.contains w chain) && (areNeighbors f w))
             |> List.except [ f ]
-            |> List.sortByDescending (fun w -> getSimilarity w t)
+            |> List.sortBy (fun w -> getDistance w t)
             |> List.map (fun w -> search (w :: chain) w t)
             |> List.filter (fun l -> List.length l > 0) // get rid of empty lists
             |> List.concat
