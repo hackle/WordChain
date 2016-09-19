@@ -12,8 +12,9 @@ let getDistance (word1:string) (word2:string) =
 let processNeighbors set word =
     set
     |> List.except [ word ]
+    |> List.filter (fun w -> 1 = getDistance word w)
     |> List.map (fun w -> { Word = w; 
-                            Distance = getDistance word w; 
+                            Distance = 1; 
                             Neighbors = [] })
 
 let processSet set =
@@ -28,10 +29,11 @@ let makeChain set fromWord toWord =
     let isChainComplete (chain:string list) (finalWord:string) =
         (chain |> List.head) = finalWord
     
-    let rec search (chain:string list) f t =
+    let rec search (chain:string list) (f:string) (t:string) : string list list =
+        printfn "current chain %A f %A t %A" chain f t
         let isBetterChain =
             match bestChain with
-            | None -> false
+            | None -> isChainComplete chain t
             | Some bc -> (isChainComplete chain t) && (List.length chain) < (List.length bc)
 
         if isBetterChain then
@@ -46,13 +48,13 @@ let makeChain set fromWord toWord =
                 |> List.filter (fun x -> x.Word = f)
 
             match currentWords with
-            | [] -> []
             | fromNode::_ ->
                 fromNode.Neighbors
                 |> List.filter (fun w -> not (List.contains w.Word chain))
                 |> List.map (fun w -> search (w.Word :: chain) w.Word t)
                 |> List.filter (fun l -> List.length l > 0) // get rid of empty lists
-                |> List.concat
+                |> List.concat            
+            | [] -> []
 
     search [ fromWord ] fromWord toWord |> ignore
     bestChain
