@@ -6,12 +6,7 @@ open WordChainKata
 let ``Chain of a word itself is itself`` () =
     let chain = makeChain [ "great" ] "great" "great" 255
     Assert.Equal<string list>([ "great" ], chain)
-
-//[<Theory>]
-//[<inlinedata([| "great"; "grate" |], "great", "grate")>]
-//let ``chains correctly`` (words:string array) (fromword:string) (toword:string) =
-//    let chain = makeChain 
-
+    
 [<Fact>]
 let ``works correctly for small set 1`` () =
     let set = [ "cat"; "cow"; "pat"; "cot"; "cog"; "dog" ]
