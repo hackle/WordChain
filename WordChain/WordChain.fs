@@ -2,18 +2,6 @@
 
 type Chain = { Word: string; Distance: int; Neighbors: Chain list }
 
-let getDistance (c1:char seq) (c2:char seq) =
-    let lengthDiff =
-        (c1 |> Seq.length) - (c2 |> Seq.length)
-        |> abs
-
-    Seq.map2 (fun c1 c2 -> c1, c2) c1 c2
-    |> Seq.filter (fun pair ->
-                    let (c1, c2) = pair
-                    c1 <> c2)
-    |> Seq.length
-    |> (+) lengthDiff
-    
 let areDifferentByOne (chars1:char list) (chars2:char list) =
     let lenDiff = 
         (List.length chars1) - (List.length chars2)
@@ -28,10 +16,26 @@ let areDifferentByOne (chars1:char list) (chars2:char list) =
 
         (isOffByOne chars1 chars2) || (isOffByOne chars2 chars1)
 
+let getDistance (c1:char seq) (c2:char seq) =
+    if areDifferentByOne (List.ofSeq c1) (List.ofSeq c2) then
+        1
+    else
+        let lengthDiff =
+            (c1 |> Seq.length) - (c2 |> Seq.length)
+            |> abs
+
+        Seq.map2 (fun c1 c2 -> c1, c2) c1 c2
+        |> Seq.filter (fun pair ->
+                        let (c1, c2) = pair
+                        c1 <> c2)
+        |> Seq.length
+        |> (+) lengthDiff
+    
+
 let areNeighbors (word1:string) (word2:string) =
     let chars1 = word1.ToCharArray() |> List.ofSeq
     let chars2 = word2.ToCharArray() |> List.ofSeq
-    (1 = getDistance chars1 chars2) || (areDifferentByOne chars1 chars2)
+    getDistance chars1 chars2 = 1
 
 type ChainState = { Better: bool; Valid: bool }
 let makeChain set fromWord toWord sizeLimit =
@@ -80,11 +84,11 @@ let makeChain set fromWord toWord sizeLimit =
     | None -> []
     | Some c -> List.rev c
 
-let getChainForWords (fromWord:string) (toWord:string) =
+let getChainForWords (fromWord:string) (toWord:string) sizeLimit =
     let regexJustLetters = new System.Text.RegularExpressions.Regex(@"^[a-zA-Z]+$", System.Text.RegularExpressions.RegexOptions.Compiled)
     // assuming scope; in fact it should work via temporarily stepping out of scope (then back in)
-    let minLength = min fromWord.Length toWord.Length
-    let maxLength = max fromWord.Length toWord.Length
+    let minLength = -2 + min fromWord.Length toWord.Length
+    let maxLength = 2 + max fromWord.Length toWord.Length
     let set =
         "E:\work\F#\wordlist.txt"
         |> System.IO.File.ReadAllLines
@@ -94,5 +98,5 @@ let getChainForWords (fromWord:string) (toWord:string) =
         |> List.map (fun w -> w.ToLower())
         |> List.distinct
 
-    makeChain set fromWord toWord 15
+    makeChain set fromWord toWord sizeLimit
     |> printfn "The chain is %A"
