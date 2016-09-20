@@ -46,13 +46,14 @@ let makeChain set fromWord toWord sizeLimit =
     let rec search 
             (chain:string list) 
             (f:string) 
-            (t:string): string list list =
+            (t:string)
+            (cancellationSource: System.Threading.CancellationTokenSource): string list list =
         let bestLength =
             match bestChain with
             | None -> 0
             | Some bc -> List.length bc
-        let cancellationSource = new System.Threading.CancellationTokenSource()
-        printfn "from %A to %A best %i current %i, %A" f t bestLength (chain|>List.length) chain
+        sprintf "from %A to %A best %i current %i, %A" f t bestLength (chain|>List.length) chain
+        |> System.Diagnostics.Debug.WriteLine
 
         let isComplete = isChainComplete chain t
         let isWithinSizeLimit = List.length chain < sizeLimit
@@ -76,20 +77,31 @@ let makeChain set fromWord toWord sizeLimit =
         elif not chainState.Valid then []
         // not better but still valid
         else
+            let cancellationSourceNew = new System.Threading.CancellationTokenSource()
             set
             |> List.filter (fun w -> not (List.contains w chain) && (areNeighbors f w))
             |> List.except [ f ]
             |> List.sortBy (fun w -> getDistance w t)
             |> List.map (fun w -> 
                             async { 
-                                return search (w :: chain) w t
+                                return
+                                    try
+                                        search (w :: chain) w t cancellationSourceNew
+                                    with
+                                    | _ -> []
                             })
             |> Async.Parallel
-            |> (fun t -> Async.RunSynchronously (t,cancellationToken=cancellationSource.Token))
+            |> (fun t -> Async.RunSynchronously (t,cancellationToken=cancellationSourceNew.Token))
             |> List.concat
             |> List.filter (fun l -> List.length l > 0) // get rid of empty lists
 
-    search [ fromWord ] fromWord toWord |> ignore
+    search 
+        [ fromWord ] 
+        fromWord 
+        toWord 
+        (new System.Threading.CancellationTokenSource()) 
+    |> ignore
+
     match bestChain with
     | None -> []
     | Some c -> List.rev c
