@@ -43,11 +43,15 @@ let makeChain set fromWord toWord sizeLimit =
     let isChainComplete (chain:string list) (finalWord:string) =
         (chain |> List.head) = finalWord
     
-    let rec search (chain:string list) (f:string) (t:string) : string list list =
+    let rec search 
+            (chain:string list) 
+            (f:string) 
+            (t:string): string list list =
         let bestLength =
             match bestChain with
             | None -> 0
             | Some bc -> List.length bc
+        let cancellationSource = new System.Threading.CancellationTokenSource()
         printfn "from %A to %A best %i current %i, %A" f t bestLength (chain|>List.length) chain
 
         let isComplete = isChainComplete chain t
@@ -66,6 +70,7 @@ let makeChain set fromWord toWord sizeLimit =
                         
         if chainState.Better then
             bestChain <- Some chain
+            cancellationSource.Cancel()
             []
         // not better and invalid
         elif not chainState.Valid then []
@@ -75,9 +80,14 @@ let makeChain set fromWord toWord sizeLimit =
             |> List.filter (fun w -> not (List.contains w chain) && (areNeighbors f w))
             |> List.except [ f ]
             |> List.sortBy (fun w -> getDistance w t)
-            |> List.map (fun w -> search (w :: chain) w t)
-            |> List.filter (fun l -> List.length l > 0) // get rid of empty lists
+            |> List.map (fun w -> 
+                            async { 
+                                return search (w :: chain) w t
+                            })
+            |> Async.Parallel
+            |> (fun t -> Async.RunSynchronously (t,cancellationToken=cancellationSource.Token))
             |> List.concat
+            |> List.filter (fun l -> List.length l > 0) // get rid of empty lists
 
     search [ fromWord ] fromWord toWord |> ignore
     match bestChain with
