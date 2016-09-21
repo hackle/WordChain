@@ -119,12 +119,13 @@ let getChainForWords
         |> List.map (fun w -> w.ToLower())
         |> List.distinct
         
+    let sharedChain:Option<string list> = None
     let forward = async {
-            let maker = new ChainMaker(set, fromWord, toWord, sizeLimit, (cancelSource.Token))
+            let maker = new ChainMaker(set, fromWord, toWord, sizeLimit, (cancelSource.Token), sharedChain)
             return maker.Make()
         }
     let backward = async {
-            let maker = new ChainMaker(set, toWord, fromWord, sizeLimit, (cancelSource.Token))
+            let maker = new ChainMaker(set, toWord, fromWord, sizeLimit, (cancelSource.Token), sharedChain)
             return maker.Make() |> List.rev
         }
 
