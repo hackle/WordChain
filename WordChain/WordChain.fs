@@ -1,7 +1,5 @@
 ﻿module WordChainKata
 
-type Chain = { Word: string; Distance: int; Neighbors: Chain list }
-
 let areDifferentByOne (chars1:char list) (chars2:char list) =
     let lenDiff = 
         (List.length chars1) - (List.length chars2)
@@ -37,21 +35,26 @@ let areNeighbors (word1:string) (word2:string) =
     let chars2 = word2.ToCharArray() |> List.ofSeq
     getDistance chars1 chars2 = 1
 
+
+let isChainComplete (chain:string list) (finalWord:string) =
+    (chain |> List.head) = finalWord
+
 type ChainState = { Better: bool; Valid: bool }
+
 let makeChain set fromWord toWord sizeLimit =
     let mutable bestChain:Option<string list> = None
-    let isChainComplete (chain:string list) (finalWord:string) =
-        (chain |> List.head) = finalWord
     
     let rec search 
             (chain:string list) 
             (f:string) 
             (t:string): unit =
-        let bestLength =
+
+        let bestChainLen =
             match bestChain with
             | None -> 0
             | Some bc -> List.length bc
-        printfn "from %A to %A best %i current %i, %A" f t bestLength (chain|>List.length) chain
+
+        printfn "from %A to %A best %i current %i, %A" f t bestChainLen (chain|>List.length) chain
         
         let isComplete = isChainComplete chain t
         let isWithinSizeLimit = List.length chain < sizeLimit
@@ -60,20 +63,19 @@ let makeChain set fromWord toWord sizeLimit =
             | None -> { Better = isComplete; Valid = not isComplete && isWithinSizeLimit }
             | Some bc -> 
                 let isBetter = isComplete && (List.length chain) < (List.length bc)
-                let stillRoomToGrow = (List.length bc) - (List.length chain) > (getDistance f t)
+                let stillHopeful = (List.length bc) - (List.length chain) > (getDistance f t)
                 let isValid = 
                     not isComplete && 
-                    stillRoomToGrow &&
+                    stillHopeful &&
                     isWithinSizeLimit
                 { Better = isBetter; Valid = isValid }
 
-        if chainState.Better then
+        match chainState.Better, chainState.Valid with
+        | true,_ ->
             bestChain <- Some chain
             ()
-        // not better and invalid
-        elif not chainState.Valid then ()
-        // not better but still valid
-        else
+        | false, false -> ()
+        | false, true ->
             set
             |> List.filter (fun w -> not (List.contains w chain) && (areNeighbors f w))
             |> List.except [ f ]
