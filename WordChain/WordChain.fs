@@ -44,9 +44,11 @@ type ChainMaker (set,
                     toWord,
                     sizeLimit,
                     cancelToken:System.Threading.CancellationToken,
-                    ?sharedBestChain: Option<string list>) =
+                    ?sharedBestChain: Ref<Option<string list>>) =
                     
-    let mutable bestChain:Option<string list> = defaultArg sharedBestChain None
+    let bestChain:Ref<Option<string list>> = 
+        defaultArg sharedBestChain (ref None)
+
     let rec search 
             (fromChain:string list)
             (t:string): unit =
@@ -54,7 +56,7 @@ type ChainMaker (set,
         let f = fromChain |> List.head
 
         let bestChainLen =
-            match bestChain with
+            match !bestChain with
             | None -> 0
             | Some bc -> List.length bc
 
@@ -63,7 +65,7 @@ type ChainMaker (set,
         let isComplete = isChainComplete fromChain t
         let isWithinSizeLimit = List.length fromChain < sizeLimit
         let chainState =
-            match bestChain with
+            match !bestChain with
             | None -> { Better = isComplete; Valid = not isComplete && isWithinSizeLimit }
             | Some bc -> 
                 let isBetter = 
@@ -81,7 +83,7 @@ type ChainMaker (set,
 
         match chainState.Better, chainState.Valid with
         | true, _ ->
-            bestChain <- Some fromChain
+            bestChain := Some fromChain
             ()
         | false, false -> ()
         | false, true ->
@@ -96,7 +98,7 @@ type ChainMaker (set,
     member this.Make () =
         search [ fromWord ] toWord
 
-        match bestChain with
+        match !bestChain with
         | None -> []
         | Some c -> List.rev c
 
@@ -119,13 +121,14 @@ let getChainForWords
         |> List.map (fun w -> w.ToLower())
         |> List.distinct
         
-    let sharedChain:Option<string list> = None
+    let mutable sharedChain:Option<string list> = None
+    let refOfSharedChain = ref sharedChain
     let forward = async {
-            let maker = new ChainMaker(set, fromWord, toWord, sizeLimit, (cancelSource.Token), sharedChain)
+            let maker = new ChainMaker(set, fromWord, toWord, sizeLimit, (cancelSource.Token), refOfSharedChain)
             return maker.Make()
         }
     let backward = async {
-            let maker = new ChainMaker(set, toWord, fromWord, sizeLimit, (cancelSource.Token), sharedChain)
+            let maker = new ChainMaker(set, toWord, fromWord, sizeLimit, (cancelSource.Token), refOfSharedChain)
             return maker.Make() |> List.rev
         }
 
@@ -137,11 +140,17 @@ let getChainForWords
         allTasks
         |> (fun tasks -> System.Threading.Tasks.Task.WhenAny(tasks).Result)
 
-    cancelSource.Cancel()
+    if firstFinished.Result = [] then
+        cancelSource.Cancel()
 
     allTasks
     |> System.Threading.Tasks.Task.WhenAll
     |> (fun t -> t.Wait())
     |> ignore
 
-    printfn "The chain is %A" firstFinished.Result
+    let result =
+        match !refOfSharedChain with
+        | None -> []
+        | Some c -> c
+
+    printfn "The best chain so far is %i words long %A" (result |> List.length) result
