@@ -28,22 +28,25 @@ let getDistance (c1:char seq) (c2:char seq) =
                         c1 <> c2)
         |> Seq.length
         |> (+) lengthDiff
-    
 
 let areNeighbors (word1:string) (word2:string) =
     let chars1 = word1.ToCharArray() |> List.ofSeq
     let chars2 = word2.ToCharArray() |> List.ofSeq
     getDistance chars1 chars2 = 1
 
-
 let isChainComplete (chain:string list) (finalWord:string) =
     (chain |> List.head) = finalWord
 
 type ChainState = { Better: bool; Valid: bool }
 
-let makeChain set fromWord toWord sizeLimit =
-    let mutable bestChain:Option<string list> = None
-    
+type ChainMaker (set,
+                    fromWord,
+                    toWord,
+                    sizeLimit,
+                    cancelToken:System.Threading.CancellationToken,
+                    ?sharedBestChain: Option<string list>) =
+                    
+    let mutable bestChain:Option<string list> = defaultArg sharedBestChain None
     let rec search 
             (fromChain:string list)
             (t:string): unit =
@@ -82,19 +85,27 @@ let makeChain set fromWord toWord sizeLimit =
             ()
         | false, false -> ()
         | false, true ->
-            set
-            |> List.filter (fun w -> not (List.contains w fromChain) && (areNeighbors f w))
-            |> List.except [ f ]
-            |> List.sortBy (fun w -> getDistance w t)
-            |> List.iter (fun w -> search (w :: fromChain) t)
+            if cancelToken.IsCancellationRequested then ()
+            else
+                set
+                |> List.filter (fun w -> not (List.contains w fromChain) && (areNeighbors f w))
+                |> List.except [ f ]
+                |> List.sortBy (fun w -> getDistance w t)
+                |> List.iter (fun w -> search (w :: fromChain) t)
 
-    search [ fromWord ] toWord
+    member this.Make () =
+        search [ fromWord ] toWord
 
-    match bestChain with
-    | None -> []
-    | Some c -> List.rev c
+        match bestChain with
+        | None -> []
+        | Some c -> List.rev c
 
-let getChainForWords (fromWord:string) (toWord:string) sizeLimit =
+let getChainForWords 
+    (fromWord:string) 
+    (toWord:string) 
+    sizeLimit 
+    (cancelSource: System.Threading.CancellationTokenSource) =
+
     let regexJustLetters = new System.Text.RegularExpressions.Regex(@"^[a-zA-Z]+$", System.Text.RegularExpressions.RegexOptions.Compiled)
     // assuming scope; in fact it should work via temporarily stepping out of scope (then back in)
     let minLength = -2 + min fromWord.Length toWord.Length
@@ -107,6 +118,29 @@ let getChainForWords (fromWord:string) (toWord:string) sizeLimit =
         |> List.filter (fun s -> s.Length >= minLength && s.Length <= maxLength)
         |> List.map (fun w -> w.ToLower())
         |> List.distinct
+        
+    let forward = async {
+            let maker = new ChainMaker(set, fromWord, toWord, sizeLimit, (cancelSource.Token))
+            return maker.Make()
+        }
+    let backward = async {
+            let maker = new ChainMaker(set, toWord, fromWord, sizeLimit, (cancelSource.Token))
+            return maker.Make() |> List.rev
+        }
 
-    makeChain set fromWord toWord sizeLimit
-    |> printfn "The chain is %A"
+    let allTasks = 
+        [ forward; backward ]
+        |> List.map Async.StartAsTask
+
+    let firstFinished =
+        allTasks
+        |> (fun tasks -> System.Threading.Tasks.Task.WhenAny(tasks).Result)
+
+    cancelSource.Cancel()
+
+    allTasks
+    |> System.Threading.Tasks.Task.WhenAll
+    |> (fun t -> t.Wait())
+    |> ignore
+
+    printfn "The chain is %A" firstFinished.Result
