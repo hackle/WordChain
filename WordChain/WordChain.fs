@@ -140,9 +140,6 @@ let getChainForWords
         allTasks
         |> (fun tasks -> System.Threading.Tasks.Task.WhenAny(tasks).Result)
 
-    if firstFinished.Result = [] then
-        cancelSource.Cancel()
-
     allTasks
     |> System.Threading.Tasks.Task.WhenAll
     |> (fun t -> t.Wait())
