@@ -45,25 +45,31 @@ let makeChain set fromWord toWord sizeLimit =
     let mutable bestChain:Option<string list> = None
     
     let rec search 
-            (chain:string list) 
-            (f:string) 
+            (fromChain:string list)
             (t:string): unit =
+
+        let f = fromChain |> List.head
 
         let bestChainLen =
             match bestChain with
             | None -> 0
             | Some bc -> List.length bc
 
-        printfn "from %A to %A best %i current %i, %A" f t bestChainLen (chain|>List.length) chain
+        printfn "from %A to %A best %i current %i, %A" f t bestChainLen (fromChain|>List.length) fromChain
         
-        let isComplete = isChainComplete chain t
-        let isWithinSizeLimit = List.length chain < sizeLimit
+        let isComplete = isChainComplete fromChain t
+        let isWithinSizeLimit = List.length fromChain < sizeLimit
         let chainState =
             match bestChain with
             | None -> { Better = isComplete; Valid = not isComplete && isWithinSizeLimit }
             | Some bc -> 
-                let isBetter = isComplete && (List.length chain) < (List.length bc)
-                let stillHopeful = (List.length bc) - (List.length chain) > (getDistance f t)
+                let isBetter = 
+                    isComplete && 
+                    (List.length fromChain) < (List.length bc)
+
+                let stillHopeful = 
+                    (List.length bc) - (List.length fromChain) > (getDistance f t)
+
                 let isValid = 
                     not isComplete && 
                     stillHopeful &&
@@ -71,18 +77,19 @@ let makeChain set fromWord toWord sizeLimit =
                 { Better = isBetter; Valid = isValid }
 
         match chainState.Better, chainState.Valid with
-        | true,_ ->
-            bestChain <- Some chain
+        | true, _ ->
+            bestChain <- Some fromChain
             ()
         | false, false -> ()
         | false, true ->
             set
-            |> List.filter (fun w -> not (List.contains w chain) && (areNeighbors f w))
+            |> List.filter (fun w -> not (List.contains w fromChain) && (areNeighbors f w))
             |> List.except [ f ]
             |> List.sortBy (fun w -> getDistance w t)
-            |> List.iter (fun w -> search (w :: chain) w t)
+            |> List.iter (fun w -> search (w :: fromChain) t)
 
-    search [ fromWord ] fromWord toWord
+    search [ fromWord ] toWord
+
     match bestChain with
     | None -> []
     | Some c -> List.rev c
