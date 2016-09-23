@@ -23,14 +23,16 @@ let makeChainWithFile
         |> List.distinct
         
     let mutable sharedChain:Option<string list> = None
-    let refOfSharedChain = ref sharedChain
+    let chainSetter c = sharedChain <- Some c
+    let chainGetter () = sharedChain
+
     let shouldCancel () = cancelSource.IsCancellationRequested
     let forward = async {
-            let maker = new ChainMaker(set, fromWord, toWord, sizeLimit, shouldCancel, refOfSharedChain)
+            let maker = new ChainMaker(set, fromWord, toWord, sizeLimit, shouldCancel, chainGetter, chainSetter)
             return maker.Make()
         }
     let backward = async {
-            let maker = new ChainMaker(set, toWord, fromWord, sizeLimit, shouldCancel, refOfSharedChain)
+            let maker = new ChainMaker(set, toWord, fromWord, sizeLimit, shouldCancel, chainGetter, chainSetter)
             return maker.Make() |> List.rev
         }
 
@@ -48,7 +50,7 @@ let makeChainWithFile
     |> ignore
 
     let result =
-        match !refOfSharedChain with
+        match sharedChain with
         | None -> []
         | Some c -> c
 
