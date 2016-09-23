@@ -2,30 +2,27 @@
 open Xunit
 open WordChainKata
 
+let cancelToken = new System.Threading.CancellationToken()
+
 [<Fact>]
 let ``Chain of a word itself is itself`` () =
-    let chain = makeChain [ "great" ] "great" "great"
-    Assert.Equal<string list>([ "great" ], chain)
-
-//[<Theory>]
-//[<inlinedata([| "great"; "grate" |], "great", "grate")>]
-//let ``chains correctly`` (words:string array) (fromword:string) (toword:string) =
-//    let chain = makeChain 
-
+    let chainMaker = new ChainMaker([ "great" ], "great", "great", 255, cancelToken)
+    Assert.Equal<string list>([ "great" ], chainMaker.Make() )
+    
 [<Fact>]
 let ``works correctly for small set 1`` () =
     let set = [ "cat"; "cow"; "pat"; "cot"; "cog"; "dog" ]
-    let chain = makeChain set "cat" "dog"
-    Assert.Equal<string list>([ "cat"; "cot"; "cog"; "dog" ], chain)
+    let chainMaker = new ChainMaker(set, "cat", "dog", 255, cancelToken)
+    Assert.Equal<string list>([ "cat"; "cot"; "cog"; "dog" ], chainMaker.Make())
     
 [<Fact>]
 let ``works correctly for small set 2`` () =
     let set = [ "aft"; "fast"; "raft"; "fist"; "rafts"; "fists"; "rants"; "lists"; "chants"; "list"; "chant"; "lisp" ]
-    let chain = makeChain set "aft" "rants"
-    Assert.Equal<string list>([ "aft"; "raft"; "rafts"; "rants" ], chain)
+    let chainMaker = new ChainMaker(set, "aft", "rants", 255, cancelToken)
+    Assert.Equal<string list>([ "aft"; "raft"; "rafts"; "rants" ], chainMaker.Make())
 
 [<Fact>]
 let ``works correctly for small set 2, reversed`` () =
     let set = [ "aft"; "fast"; "raft"; "fist"; "rafts"; "fists"; "rants"; "lists"; "chants"; "list"; "chant"; "lisp" ]
-    let chain = makeChain set "rants" "aft"
-    Assert.Equal<string list>([ "rants"; "rafts"; "raft"; "aft" ], chain)
+    let chainMaker = new ChainMaker(set, "rants", "aft", 255, cancelToken)
+    Assert.Equal<string list>([ "rants"; "rafts"; "raft"; "aft" ], chainMaker.Make())
