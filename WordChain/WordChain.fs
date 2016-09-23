@@ -14,15 +14,15 @@ let areDifferentByOne (chars1:char list) (chars2:char list) =
 
         (isOffByOne chars1 chars2) || (isOffByOne chars2 chars1)
 
-let getDistance (c1:char seq) (c2:char seq) =
-    if areDifferentByOne (List.ofSeq c1) (List.ofSeq c2) then
+let getDistance (chars1:char seq) (chars2:char seq) =
+    if areDifferentByOne (List.ofSeq chars1) (List.ofSeq chars2) then
         1
     else
         let lengthDiff =
-            (c1 |> Seq.length) - (c2 |> Seq.length)
+            (chars1 |> Seq.length) - (chars2 |> Seq.length)
             |> abs
 
-        Seq.map2 (fun c1 c2 -> c1, c2) c1 c2
+        Seq.map2 (fun c1 c2 -> c1, c2) chars1 chars2
         |> Seq.filter (fun pair ->
                         let (c1, c2) = pair
                         c1 <> c2)
@@ -50,19 +50,20 @@ type ChainMaker (set,
         defaultArg sharedBestChain (ref None)
 
     let rec search 
-            (fromChain:string list)
-            (t:string): unit =
+            (fromChain:string list): unit =
 
-        let f = fromChain |> List.head
+        if cancelToken.IsCancellationRequested then ()
+
+        let headWord = fromChain |> List.head
 
         let bestChainLen =
             match !bestChain with
             | None -> 0
             | Some bc -> List.length bc
 
-        printfn "from %A to %A best %i current %i, %A" f t bestChainLen (fromChain|>List.length) fromChain
+        printfn "from %A to %A best %i current %i, %A" headWord toWord bestChainLen (fromChain|>List.length) fromChain
         
-        let isComplete = isChainComplete fromChain t
+        let isComplete = isChainComplete fromChain toWord
         let isWithinSizeLimit = List.length fromChain < sizeLimit
         let chainState =
             match !bestChain with
@@ -73,7 +74,7 @@ type ChainMaker (set,
                     (List.length fromChain) < (List.length bc)
 
                 let stillHopeful = 
-                    (List.length bc) - (List.length fromChain) > (getDistance f t)
+                    (List.length bc) - (List.length fromChain) > (getDistance headWord toWord)
 
                 let isValid = 
                     not isComplete && 
@@ -87,16 +88,14 @@ type ChainMaker (set,
             ()
         | false, false -> ()
         | false, true ->
-            if cancelToken.IsCancellationRequested then ()
-            else
-                set
-                |> List.filter (fun w -> not (List.contains w fromChain) && (areNeighbors f w))
-                |> List.except [ f ]
-                |> List.sortBy (fun w -> getDistance w t)
-                |> List.iter (fun w -> search (w :: fromChain) t)
+            set
+            |> List.filter (fun w -> not (List.contains w fromChain) && (areNeighbors headWord w))
+            |> List.except [ headWord ]
+            |> List.sortBy (fun w -> getDistance w toWord)
+            |> List.iter (fun w -> search (w :: fromChain))
 
     member this.Make () =
-        search [ fromWord ] toWord
+        search [ fromWord ]
 
         match !bestChain with
         | None -> []
