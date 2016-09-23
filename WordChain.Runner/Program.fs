@@ -86,6 +86,6 @@ let main argv =
     try
         makeChain ()
     with
-    | _ -> ()
+    | e -> printfn "Error %A" e
 
     0 // return an integer exit code
