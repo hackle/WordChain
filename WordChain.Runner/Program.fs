@@ -49,11 +49,7 @@ let makeChainWithFile
     |> (fun t -> t.Wait())
     |> ignore
 
-    let result =
-        match sharedChain with
-        | None -> []
-        | Some c -> c
-
+    let result = firstFinished.Result
     printfn "The best chain so far is %i words long %A" (result |> List.length) result
 
 [<EntryPoint>]
@@ -89,6 +85,8 @@ let main argv =
     try
         makeChain ()
     with
-    | e -> printfn "Error %A" e
+    | e -> 
+        printfn "Error %A" e
+        System.Console.ReadKey(true) |> ignore
 
     0 // return an integer exit code
