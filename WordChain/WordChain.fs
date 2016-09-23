@@ -34,7 +34,7 @@ let areNeighbors (word1:string) (word2:string) =
     (1 = getDistance chars1 chars2) || (areDifferentByOne chars1 chars2)
 
 type ChainState = { Better: bool; Valid: bool }
-let makeChain set fromWord toWord =
+let makeChain set fromWord toWord sizeLimit =
     let mutable bestChain:Option<string list> = None
     let isChainComplete (chain:string list) (finalWord:string) =
         (chain |> List.head) = finalWord
@@ -47,13 +47,17 @@ let makeChain set fromWord toWord =
         printfn "from %A to %A best %i current %i, %A" f t bestLength (chain|>List.length) chain
 
         let isComplete = isChainComplete chain t
+        let isWithinSizeLimit = List.length chain < sizeLimit
         let chainState =
             match bestChain with
-            | None -> { Better = isComplete; Valid = not isComplete }
+            | None -> { Better = isComplete; Valid = not isComplete && isWithinSizeLimit }
             | Some bc -> 
                 let isBetter = isComplete && (List.length chain) < (List.length bc)
                 let stillRoomToGrow = (List.length bc) - (List.length chain) > (getDistance f t)
-                let isValid = not isComplete && stillRoomToGrow
+                let isValid = 
+                    not isComplete && 
+                    stillRoomToGrow &&
+                    isWithinSizeLimit
                 { Better = isBetter; Valid = isValid }
                         
         if chainState.Better then
@@ -90,5 +94,5 @@ let getChainForWords (fromWord:string) (toWord:string) =
         |> List.map (fun w -> w.ToLower())
         |> List.distinct
 
-    makeChain set fromWord toWord
+    makeChain set fromWord toWord 15
     |> printfn "The chain is %A"
