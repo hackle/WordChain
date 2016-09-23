@@ -24,12 +24,13 @@ let makeChainWithFile
         
     let mutable sharedChain:Option<string list> = None
     let refOfSharedChain = ref sharedChain
+    let shouldCancel () = cancelSource.IsCancellationRequested
     let forward = async {
-            let maker = new ChainMaker(set, fromWord, toWord, sizeLimit, (cancelSource.Token), refOfSharedChain)
+            let maker = new ChainMaker(set, fromWord, toWord, sizeLimit, shouldCancel, refOfSharedChain)
             return maker.Make()
         }
     let backward = async {
-            let maker = new ChainMaker(set, toWord, fromWord, sizeLimit, (cancelSource.Token), refOfSharedChain)
+            let maker = new ChainMaker(set, toWord, fromWord, sizeLimit, shouldCancel, refOfSharedChain)
             return maker.Make() |> List.rev
         }
 

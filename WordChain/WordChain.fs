@@ -43,7 +43,7 @@ type ChainMaker (set,
                     fromWord,
                     toWord,
                     sizeLimit,
-                    cancelToken:System.Threading.CancellationToken,
+                    shouldCancel: unit -> bool,
                     ?sharedBestChain: Ref<Option<string list>>) =
                     
     let bestChain:Ref<Option<string list>> = 
@@ -52,47 +52,47 @@ type ChainMaker (set,
     let rec search 
             (fromChain:string list): unit =
 
-        if cancelToken.IsCancellationRequested then ()
+        if shouldCancel() then ()
+        else
+            let headWord = fromChain |> List.head
 
-        let headWord = fromChain |> List.head
+            let bestChainLen =
+                match !bestChain with
+                | None -> 0
+                | Some bc -> List.length bc
 
-        let bestChainLen =
-            match !bestChain with
-            | None -> 0
-            | Some bc -> List.length bc
-
-        printfn "from %A to %A best %i current %i, %A" headWord toWord bestChainLen (fromChain|>List.length) fromChain
+            printfn "from %A to %A best %i current %i, %A" headWord toWord bestChainLen (fromChain|>List.length) fromChain
         
-        let isComplete = isChainComplete fromChain toWord
-        let isWithinSizeLimit = List.length fromChain < sizeLimit
-        let chainState =
-            match !bestChain with
-            | None -> { Better = isComplete; Valid = not isComplete && isWithinSizeLimit }
-            | Some bc -> 
-                let isBetter = 
-                    isComplete && 
-                    (List.length fromChain) < (List.length bc)
+            let isComplete = isChainComplete fromChain toWord
+            let isWithinSizeLimit = List.length fromChain < sizeLimit
+            let chainState =
+                match !bestChain with
+                | None -> { Better = isComplete; Valid = not isComplete && isWithinSizeLimit }
+                | Some bc -> 
+                    let isBetter = 
+                        isComplete && 
+                        (List.length fromChain) < (List.length bc)
 
-                let stillHopeful = 
-                    (List.length bc) - (List.length fromChain) > (getDistance headWord toWord)
+                    let stillHopeful = 
+                        (List.length bc) - (List.length fromChain) > (getDistance headWord toWord)
 
-                let isValid = 
-                    not isComplete && 
-                    stillHopeful &&
-                    isWithinSizeLimit
-                { Better = isBetter; Valid = isValid }
+                    let isValid = 
+                        not isComplete && 
+                        stillHopeful &&
+                        isWithinSizeLimit
+                    { Better = isBetter; Valid = isValid }
 
-        match chainState.Better, chainState.Valid with
-        | true, _ ->
-            bestChain := Some fromChain
-            ()
-        | false, false -> ()
-        | false, true ->
-            set
-            |> List.filter (fun w -> not (List.contains w fromChain) && (areNeighbors headWord w))
-            |> List.except [ headWord ]
-            |> List.sortBy (fun w -> getDistance w toWord)
-            |> List.iter (fun w -> search (w :: fromChain))
+            match chainState.Better, chainState.Valid with
+            | true, _ ->
+                bestChain := Some fromChain
+                ()
+            | false, false -> ()
+            | false, true ->
+                set
+                |> List.filter (fun w -> not (List.contains w fromChain) && (areNeighbors headWord w))
+                |> List.except [ headWord ]
+                |> List.sortBy (fun w -> getDistance w toWord)
+                |> List.iter (fun w -> search (w :: fromChain))
 
     member this.Make () =
         search [ fromWord ]
