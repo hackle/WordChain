@@ -39,13 +39,13 @@ let isChainComplete (chain:string list) (finalWord:string) =
 
 type ChainState = { Better: bool; Valid: bool }
 
-type ChainMaker (set,
-                    fromWord,
-                    toWord,
-                    sizeLimit,
-                    shouldCancel: unit -> bool,
-                    getBestChain: unit -> Option<string list>,
-                    setBestChain: string list -> unit) =
+let makeChain set
+        fromWord
+        toWord
+        sizeLimit
+        (shouldCancel: unit -> bool)
+        (getBestChain: unit -> Option<string list>)
+        (setBestChain: string list -> unit) =
     
     let getChainState currentChain =
         let headWord = currentChain |> List.head
@@ -96,9 +96,8 @@ type ChainMaker (set,
         if shouldCancel() then ()
         else search'()
 
-    member this.Make () =
-        search [ fromWord ]
+    search [ fromWord ]
 
-        match getBestChain() with
-        | None -> []
-        | Some c -> List.rev c
+    match getBestChain() with
+    | None -> []
+    | Some c -> List.rev c

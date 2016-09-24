@@ -28,12 +28,10 @@ let makeChainWithFile
 
     let shouldCancel () = cancelSource.IsCancellationRequested
     let forward = async {
-            let maker = new ChainMaker(set, fromWord, toWord, sizeLimit, shouldCancel, chainGetter, chainSetter)
-            return maker.Make()
+            return makeChain set fromWord toWord sizeLimit shouldCancel chainGetter chainSetter
         }
     let backward = async {
-            let maker = new ChainMaker(set, toWord, fromWord, sizeLimit, shouldCancel, chainGetter, chainSetter)
-            return maker.Make() |> List.rev
+            return makeChain set toWord fromWord sizeLimit shouldCancel chainGetter chainSetter |> List.rev
         }
 
     let allTasks = 
